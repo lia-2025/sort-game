@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>並べ替えクイズ</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        .choice-btn { margin: 5px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        .selected { background-color: lightgray; }
+        #selected-order { margin-top: 20px; font-weight: bold; }
+        #result { margin-top: 20px; font-size: 18px; font-weight: bold; }
+        #score { margin-top: 20px; font-size: 20px; font-weight: bold; }
+        #retry-btn { margin-top: 20px; padding: 10px 20px; font-size: 16px; cursor: pointer; display: none; position: relative; left: 50%; transform: translateX(-50%); }
+        #question-image, #result-image {
+            max-width: 80%; height: auto; max-height: 300px; margin-bottom: 15px; display: none;
+            border: 1px solid #ccc; display: block; margin-left: auto; margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+    <h2 id="question-text">次の単語を正しい順番に並べ替えなさい</h2>
+    <img id="question-image" src="" alt="問題の画像">
+    <div id="choices"></div>
+    <p id="selected-order">選択順: </p>
+    <button id="submit-btn">確定</button>
+    <p id="result"></p>
+    <button id="next-btn" style="display: none;">次の問題へ</button>
+    <p id="score" style="display: none;"></p>
+    <img id="result-image" src="images/result.png" alt="結果の画像" style="display: none;">
+    <button id="retry-btn">もう一度遊ぶ</button>
+
+    <script>
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let selectedOrder = [];
+        let correctAnswers = 0;
+
+        async function loadQuestions() {
+            try {
+                console.log("Fetching questions.json...");
+                const response = await fetch("questions.json");
+                questions = await response.json();
+                console.log("Questions loaded:", questions);
+                loadQuestion();
+            } catch (error) {
+                console.error("Error loading questions:", error);
+            }
+        }
+
+        function loadQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                showFinalScore();
+                return;
+            }
+            const question = questions[currentQuestionIndex];
+            document.getElementById("question-text").textContent = question.sentence;
+            document.getElementById("choices").innerHTML = "";
+            selectedOrder = [];
+            document.getElementById("selected-order").textContent = "選択順: ";
+            document.getElementById("result").textContent = "";
+            document.getElementById("next-btn").textContent = (currentQuestionIndex === questions.length - 1) ? "採点" : "次の問題へ";
+            document.getElementById("next-btn").style.display = "none";
+            document.getElementById("submit-btn").style.display = "inline-block";
+            document.getElementById("score").style.display = "none";
+            document.getElementById("retry-btn").style.display = "none";
+            document.getElementById("result-image").style.display = "none";
+            
+            // 画像の表示とキャッシュ対策
+            const questionImage = document.getElementById("question-image");
+            if (question.image) {
+                questionImage.src = question.image + "?t=" + new Date().getTime();
+                questionImage.style.display = "block";
+            } else {
+                questionImage.style.display = "none";
+            }
+            
+            question.choices.forEach(choice => {
+                const button = document.createElement("button");
+                button.textContent = choice;
+                button.classList.add("choice-btn");
+                button.onclick = () => toggleChoice(choice, button);
+                document.getElementById("choices").appendChild(button);
+            });
+        }
+
+        function toggleChoice(choice, button) {
+            const index = selectedOrder.indexOf(choice);
+            if (index === -1) {
+                selectedOrder.push(choice);
+                button.classList.add("selected");
+            } else {
+                selectedOrder.splice(index, 1);
+                button.classList.remove("selected");
+            }
+            document.getElementById("selected-order").textContent = "選択順: " + selectedOrder.join(" → ");
+        }
+
+        document.getElementById("submit-btn").onclick = () => {
+            const question = questions[currentQuestionIndex];
+            if (selectedOrder.length !== question.choices.length) return;
+
+            if (JSON.stringify(selectedOrder) === JSON.stringify(question.correctOrder)) {
+                document.getElementById("result").textContent = "正解！";
+                correctAnswers++;
+            } else {
+                document.getElementById("result").textContent = "不正解！正しい順番は " + question.correctOrder.join(" → ");
+            }
+            document.getElementById("next-btn").style.display = "inline-block";
+        };
+
+        document.getElementById("next-btn").onclick = () => {
+            currentQuestionIndex++;
+            loadQuestion();
+        };
+
+        function showFinalScore() {
+            document.getElementById("question-text").textContent = "セリフ並べ替えクイズ終了！";
+            document.getElementById("choices").innerHTML = "";
+            document.getElementById("selected-order").textContent = "";
+            document.getElementById("result").textContent = "";
+            document.getElementById("next-btn").style.display = "none";
+            document.getElementById("submit-btn").style.display = "none";
+            document.getElementById("score").textContent = `あなたのスコア: ${correctAnswers} / ${questions.length} 問正解！`;
+            document.getElementById("score").style.display = "block";
+            document.getElementById("retry-btn").style.display = "block";
+            document.getElementById("question-image").style.display = "none";
+            document.getElementById("result-image").style.display = "block";
+        }
+
+        document.getElementById("retry-btn").onclick = () => {
+            currentQuestionIndex = 0;
+            correctAnswers = 0;
+            loadQuestion();
+        };
+
+        loadQuestions();
+    </script>
+</body>
+</html>
